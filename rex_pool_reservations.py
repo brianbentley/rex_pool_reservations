@@ -1,5 +1,5 @@
-import argparse
 import configparser
+import datetime
 import logging
 import sys
 import time
@@ -40,6 +40,33 @@ def login(web_driver, username, password):
     )
     logging.info("login succesful.")
 
+def schedule_pool_time(web_driver):
+    """Schedules the pool time"""
+    web_driver.find_element_by_id("menu_SCH").click()
+
+    WebDriverWait(web_driver, timeout=30).until(
+        lambda d: d.find_element_by_xpath("//div[@title='Aquatics']")
+    )
+    web_driver.find_element_by_xpath("//div[@title='Aquatics']").click()
+
+    WebDriverWait(web_driver, timeout=30).until(
+        lambda d: d.find_element_by_xpath("//div[@title='Lap Pool Reservation']")
+    )
+    web_driver.find_element_by_xpath("//div[@title='Lap Pool Reservation']").click()
+
+    WebDriverWait(web_driver, timeout=30).until(
+        lambda d: d.find_element_by_id("dateControlText")
+    )
+
+    target_date = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%m/%d/%Y")
+
+    date_input = web_driver.find_element_by_id("dateControlText")
+
+    #web_driver.execute_script(f"arguments[0].value = '{target_date}';", date_input)
+    web_driver.execute_script(f"arguments[0].removeAttribute('disabled');", date_input)
+
+    #web_driver.find_element_by_id("btnContinue").click()
+    
 
 def main():
     logging.basicConfig(level=logging.INFO)
@@ -47,6 +74,8 @@ def main():
     web_driver = webdriver.Chrome()
     web_driver.get(config["url"])
     login(web_driver, config["username"], config["password"])
+    schedule_pool_time(web_driver)
+    input("Press Enter to continue...")
 
 
 if __name__ == "__main__":

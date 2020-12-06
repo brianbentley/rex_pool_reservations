@@ -40,8 +40,21 @@ def login(web_driver, username, password):
     )
     logging.info("login succesful.")
 
-def schedule_pool_time(web_driver):
-    """Schedules the pool time"""
+
+def pick_date(calender_element, target_date):
+    """Picks the date using the JQuery calendar UI"""
+    logging.info(f"Picking date: {target_date}")
+    today = datetime.date.today()
+
+    if today.day > target_date.day:
+        calender_element.find_element_by_xpath("//a[@title='Next']").click()
+
+    calender_element.find_element_by_link_text(str(target_date.day)).click()
+
+
+def navigate_to_reservation_page(web_driver):
+    """navigates to the reservation page"""
+    logging.info("Navigating to the reservation page.")
     web_driver.find_element_by_id("menu_SCH").click()
 
     WebDriverWait(web_driver, timeout=30).until(
@@ -58,15 +71,29 @@ def schedule_pool_time(web_driver):
         lambda d: d.find_element_by_id("dateControlText")
     )
 
-    target_date = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%m/%d/%Y")
+    web_driver.find_elements_by_class_name("ui-datepicker-trigger")[0].click()
 
-    date_input = web_driver.find_element_by_id("dateControlText")
+    WebDriverWait(web_driver, timeout=30).until(
+        lambda d: d.find_element_by_id("ui-datepicker-div")
+    )
+    calender_element = web_driver.find_element_by_id("ui-datepicker-div")
 
-    #web_driver.execute_script(f"arguments[0].value = '{target_date}';", date_input)
-    web_driver.execute_script(f"arguments[0].removeAttribute('disabled');", date_input)
+    target_date = datetime.date.today() + datetime.timedelta(days=6)
+    pick_date(calender_element, target_date)
 
-    #web_driver.find_element_by_id("btnContinue").click()
-    
+    web_driver.find_element_by_id("btnContinue").click()
+
+
+def schedule_pool_time(web_driver):
+    """Schedules the pool time"""
+    navigate_to_reservation_page(web_driver)
+
+    WebDriverWait(web_driver, timeout=30).until(
+        lambda d: d.find_element_by_id("spnWeekDate")
+    )
+    time.sleep(5)
+    web_driver.find_element_by_id("ancSchListView").click()
+
 
 def main():
     logging.basicConfig(level=logging.INFO)

@@ -5,6 +5,7 @@ import sys
 import time
 import keyring
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
 
@@ -98,11 +99,18 @@ def schedule_pool_time(web_driver):
 def main():
     logging.basicConfig(level=logging.INFO)
     config = parse_config(sys.argv[1])
-    web_driver = webdriver.Chrome()
-    web_driver.get(config["url"])
-    login(web_driver, config["username"], config["password"])
-    schedule_pool_time(web_driver)
-    input("Press Enter to continue...")
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    web_driver = webdriver.Chrome(options=chrome_options)
+    try:
+        web_driver.get(config["url"])
+        login(web_driver, config["username"], config["password"])
+        schedule_pool_time(web_driver)
+        input("Press Enter to continue...")
+        web_driver.quit()
+    except:
+        input("Press Enter to continue...")
+        web_driver.quit()
 
 
 if __name__ == "__main__":

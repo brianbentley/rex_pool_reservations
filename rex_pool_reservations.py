@@ -1,24 +1,25 @@
-import configparser
+import calendar
 import datetime
+import json
 import logging
 import sys
 import time
-import keyring
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import NoSuchElementException
+
+
+class PoolReservationError(Exception):
+    pass
 
 
 def parse_config(config_file):
     """Parses the config file"""
-    logging.info(f"Parsing config file: {config_file}")
-    config = configparser.ConfigParser()
-    config.read(config_file)
-    username = config["credentials"]["username"]
-    credential_name = config["credentials"]["credential_name"]
-    password = keyring.get_password(credential_name, username)
-    url = config["config"]["url"]
-    return {"username": username, "password": password, "url": url}
+    logging.info("Parsing config file: %s", config_file)
+    with open(config_file, "r") as json_file:
+        config = json.load(json_file)
+    return config
 
 
 def login(web_driver, username, password):
@@ -44,7 +45,7 @@ def login(web_driver, username, password):
 
 def pick_date(calender_element, target_date):
     """Picks the date using the JQuery calendar UI"""
-    logging.info(f"Picking date: {target_date}")
+    logging.info("Picking date: %s", target_date)
     today = datetime.date.today()
 
     if today.day > target_date.day:
@@ -79,38 +80,83 @@ def navigate_to_reservation_page(web_driver):
     )
     calender_element = web_driver.find_element_by_id("ui-datepicker-div")
 
-    target_date = datetime.date.today() + datetime.timedelta(days=6)
+    target_date = datetime.date.today() + datetime.timedelta(days=7)
     pick_date(calender_element, target_date)
 
     web_driver.find_element_by_id("btnContinue").click()
 
 
-def schedule_pool_time(web_driver):
+def schedule_pool_time(web_driver, config):
     """Schedules the pool time"""
     navigate_to_reservation_page(web_driver)
 
     WebDriverWait(web_driver, timeout=30).until(
         lambda d: d.find_element_by_id("spnWeekDate")
     )
+    # TODO: This should probably be changed to an element wait
     time.sleep(5)
     web_driver.find_element_by_id("ancSchListView").click()
+
+    WebDriverWait(web_driver, timeout=30).until(
+        lambda d: d.find_element_by_class_name("tblSchslots")
+    )
+
+    schedule_table = web_driver.find_element_by_class_name("tblSchslots")
+
+    current_weekday = datetime.datetime.today().weekday()
+
+    for weekday, hour in config["schedule"].items():
+        if getattr(calendar, weekday.upper()) == current_weekday:
+            schedule_table.find_element_by_xpath(
+                f"//td[starts-with(text(),'{hour:02d}:')]"
+            ).find_element_by_xpath("..").find_element_by_class_name(
+                "schTblButton"
+            ).click()
+            WebDriverWait(web_driver, timeout=30).until(
+                lambda d: d.find_element_by_id("btnContinue")
+            )
+            web_driver.find_element_by_id("btnContinue").click()
+            break
+
+    try:
+        WebDriverWait(web_driver, timeout=30).until(
+            lambda d: d.find_element_by_id("ctl00_pageContentHolder_btnContinueCart")
+        )
+        web_driver.find_element_by_id("ctl00_pageContentHolder_btnContinueCart").click()
+    except:
+        raise PoolReservationError("Unable to find matching pool time.")
+    try:
+        WebDriverWait(web_driver, timeout=30).until(
+            lambda d: d.find_element_by_id("ctl00_pageContentHolder_ScheduleDetails")
+        )
+        logging.info(
+            web_driver.find_element_by_id(
+                "ctl00_pageContentHolder_ScheduleDetails"
+            ).text
+        )
+    except:
+        raise PoolReservationError("Confirmation screen was not found.")
 
 
 def main():
     logging.basicConfig(level=logging.INFO)
     config = parse_config(sys.argv[1])
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    if config["headless"]:
+        chrome_options.add_argument("--headless")
     web_driver = webdriver.Chrome(options=chrome_options)
     try:
         web_driver.get(config["url"])
         login(web_driver, config["username"], config["password"])
-        schedule_pool_time(web_driver)
+        schedule_pool_time(web_driver, config)
         input("Press Enter to continue...")
         web_driver.quit()
-    except:
+    except Exception as e:
+        logging.error("An error has occured.")
+        logging.error(e, exc_info=True)
         input("Press Enter to continue...")
         web_driver.quit()
+        raise
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import calendar
 import datetime
 import json
 import logging
+import smtplib
 import sys
 import time
 from selenium import webdriver
@@ -12,6 +13,28 @@ from selenium.common.exceptions import NoSuchElementException
 
 class PoolReservationError(Exception):
     pass
+
+
+def send_email(
+    message, to_address_list, smtp_user, stmp_password, smtp_server, smtp_port
+):
+    """Sends an email"""
+    email_text = """\
+    From: %s
+    To: %s
+    Subject:
+
+    %s
+    """ % (
+        smtp_user,
+        ", ".join(to_address_list),
+        message,
+    )
+    server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+    server.ehlo()
+    server.login(smtp_user, stmp_password)
+    server.sendmail(smtp_user, to_address_list, email_text)
+    server.close()
 
 
 def parse_config(config_file):
@@ -129,11 +152,11 @@ def schedule_pool_time(web_driver, config):
         WebDriverWait(web_driver, timeout=30).until(
             lambda d: d.find_element_by_id("ctl00_pageContentHolder_ScheduleDetails")
         )
-        logging.info(
-            web_driver.find_element_by_id(
-                "ctl00_pageContentHolder_ScheduleDetails"
-            ).text
-        )
+        reservation_message = web_driver.find_element_by_id(
+            "ctl00_pageContentHolder_ScheduleDetails"
+        ).text
+        logging.info(reservation_message)
+        return reservation_message
     except:
         raise PoolReservationError("Confirmation screen was not found.")
 
@@ -148,14 +171,29 @@ def main():
     try:
         web_driver.get(config["url"])
         login(web_driver, config["username"], config["password"])
-        schedule_pool_time(web_driver, config)
-        input("Press Enter to continue...")
+        reservation_message = schedule_pool_time(web_driver, config)
         web_driver.quit()
+        send_email(
+            reservation_message,
+            config["to_address_list"],
+            config["smtp_user"],
+            config["stmp_password"],
+            config["smtp_server"],
+            config["smtp_port"],
+        )
     except Exception as e:
-        logging.error("An error has occured.")
+        error_message = "An error has occured during execution."
+        logging.error(error_message)
         logging.error(e, exc_info=True)
-        input("Press Enter to continue...")
         web_driver.quit()
+        send_email(
+            error_message,
+            config["to_address_list"],
+            config["smtp_user"],
+            config["stmp_password"],
+            config["smtp_server"],
+            config["smtp_port"],
+        )
         raise
 
 

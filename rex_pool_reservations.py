@@ -192,7 +192,7 @@ def main():
             config["smtp_port"],
         )
     except Exception as e:
-        error_message = "An error has occured during execution."
+        error_message = "Rex Pool Reservation: An error has occured during execution."
         logging.error(error_message)
         logging.error(e, exc_info=True)
         web_driver.quit()

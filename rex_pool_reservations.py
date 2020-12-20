@@ -2,6 +2,7 @@ import calendar
 import datetime
 import json
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import smtplib
 import sys
 import time
@@ -16,23 +17,24 @@ class PoolReservationError(Exception):
 
 
 def send_email(
-    message, to_address_list, smtp_user, stmp_password, smtp_server, smtp_port
+    subject, message, to_address_list, smtp_user, smtp_password, smtp_server, smtp_port
 ):
     """Sends an email"""
     email_text = """\
     From: %s
     To: %s
-    Subject:
+    Subject: %s
 
     %s
     """ % (
         smtp_user,
         ", ".join(to_address_list),
+        subject,
         message,
     )
     server = smtplib.SMTP_SSL(smtp_server, smtp_port)
     server.ehlo()
-    server.login(smtp_user, stmp_password)
+    server.login(smtp_user, smtp_password)
     server.sendmail(smtp_user, to_address_list, email_text)
     server.close()
 
@@ -162,7 +164,14 @@ def schedule_pool_time(web_driver, config):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    log_handler = TimedRotatingFileHandler(
+        "log/rex_pool_reservations.log", when="D", interval=7, backupCount=4
+    )
+    logging.basicConfig(
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        level=logging.INFO,
+        handlers=[log_handler],
+    )
     config = parse_config(sys.argv[1])
     chrome_options = Options()
     if config["headless"]:
@@ -174,10 +183,11 @@ def main():
         reservation_message = schedule_pool_time(web_driver, config)
         web_driver.quit()
         send_email(
+            "Rex Pool Reservation",
             reservation_message,
             config["to_address_list"],
             config["smtp_user"],
-            config["stmp_password"],
+            config["smtp_password"],
             config["smtp_server"],
             config["smtp_port"],
         )
@@ -187,10 +197,11 @@ def main():
         logging.error(e, exc_info=True)
         web_driver.quit()
         send_email(
+            "Rex Pool Reservation",
             error_message,
             config["to_address_list"],
             config["smtp_user"],
-            config["stmp_password"],
+            config["smtp_password"],
             config["smtp_server"],
             config["smtp_port"],
         )

@@ -10,6 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import ElementNotInteractableException
 
 
 class PoolReservationError(Exception):
@@ -122,26 +123,52 @@ def schedule_pool_time(web_driver, config):
     time.sleep(5)
     web_driver.find_element_by_id("ancSchListView").click()
 
-    WebDriverWait(web_driver, timeout=30).until(
-        lambda d: d.find_element_by_class_name("tblSchslots")
-    )
-
-    schedule_table = web_driver.find_element_by_class_name("tblSchslots")
-
     current_weekday = datetime.datetime.today().weekday()
+
+    no_schedule_today = True
 
     for weekday, hour in config["schedule"].items():
         if getattr(calendar, weekday.upper()) == current_weekday:
-            schedule_table.find_element_by_xpath(
-                f"//td[starts-with(text(),'{hour:02d}:')]"
-            ).find_element_by_xpath("..").find_element_by_class_name(
-                "schTblButton"
-            ).click()
+            no_schedule_today = False
+
+            found_pool_time = False
+
+            schedule_xpath = (
+                "//td[contains(@class, 'clstdResurce') and "
+                "(contains(text(), 'Lane 2') or contains(text(), 'Lane 3')"
+                " or contains(text(), 'Lane 4') or contains(text(), 'Lane 5'))]"
+                f"/preceding-sibling::td[position()=2 and starts-with(text(), '{hour:02d}:')]"
+            )
+
+            while found_pool_time == False:
+                WebDriverWait(web_driver, timeout=30).until(
+                    lambda d: d.find_element_by_class_name("tblSchslots")
+                )
+
+                schedule_table = web_driver.find_element_by_class_name("tblSchslots")
+                try:
+                    schedule_table.find_element_by_xpath(
+                        schedule_xpath
+                    ).find_element_by_xpath("..").find_element_by_class_name(
+                        "schTblButton"
+                    ).click()
+                    found_pool_time = True
+                except NoSuchElementException:
+                    try:
+                        web_driver.find_element_by_id("ancSchListNext").click()
+                    except ElementNotInteractableException:
+                        raise PoolReservationError("Unable to find matching pool time.")
+
             WebDriverWait(web_driver, timeout=30).until(
                 lambda d: d.find_element_by_id("btnContinue")
             )
             web_driver.find_element_by_id("btnContinue").click()
             break
+
+    if no_schedule_today:
+        raise PoolReservationError(
+            "No schedules were found for today in configuration."
+        )
 
     try:
         WebDriverWait(web_driver, timeout=30).until(
@@ -149,7 +176,7 @@ def schedule_pool_time(web_driver, config):
         )
         web_driver.find_element_by_id("ctl00_pageContentHolder_btnContinueCart").click()
     except:
-        raise PoolReservationError("Unable to find matching pool time.")
+        raise PoolReservationError("Unable to cotinue with scheduled time in cart.")
     try:
         WebDriverWait(web_driver, timeout=30).until(
             lambda d: d.find_element_by_id("ctl00_pageContentHolder_ScheduleDetails")
@@ -160,7 +187,7 @@ def schedule_pool_time(web_driver, config):
         logging.info(reservation_message)
         return reservation_message
     except:
-        raise PoolReservationError("Confirmation screen was not found.")
+        raise PoolReservationError("Unable to confirm scheduled pool time.")
 
 
 def main():
@@ -170,7 +197,7 @@ def main():
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         level=logging.INFO,
-        handlers=[log_handler],
+        handlers=[log_handler, logging.StreamHandler()],
     )
     config = parse_config(sys.argv[1])
     chrome_options = Options()
@@ -184,7 +211,7 @@ def main():
         web_driver.quit()
         send_email(
             "Rex Pool Reservation",
-            reservation_message,
+            f"Rex Pool Reservation: {reservation_message}",
             config["to_address_list"],
             config["smtp_user"],
             config["smtp_password"],
@@ -192,7 +219,7 @@ def main():
             config["smtp_port"],
         )
     except Exception as e:
-        error_message = "Rex Pool Reservation: An error has occured during execution."
+        error_message = f"Rex Pool Reservation: {e}"
         logging.error(error_message)
         logging.error(e, exc_info=True)
         web_driver.quit()

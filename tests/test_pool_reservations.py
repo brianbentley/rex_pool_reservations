@@ -21,7 +21,7 @@ def test_login(mocker):
         mocker.call("ui-datepicker-div"),
         mocker.call().__bool__(),
         mocker.call("ui-datepicker-div"),
-        mocker.call().find_element_by_link_text("19"),
+        mocker.call().find_element_by_link_text("30"),
         mocker.call().find_element_by_link_text().click(),
         mocker.call("btnContinue"),
         mocker.call().click(),

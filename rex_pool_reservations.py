@@ -127,17 +127,22 @@ def schedule_pool_time(web_driver, config):
 
     no_schedule_today = True
 
-    for weekday, hour in config["schedule"].items():
+    for weekday, pool_time in config["schedule"].items():
         if getattr(calendar, weekday.upper()) == current_weekday:
             no_schedule_today = False
 
             found_pool_time = False
 
+            hour = pool_time["hour"]
+            ampm = pool_time["ampm"]
+
+            """//td[contains(@class, 'clstdResurce') and (contains(text(), 'Lane 2') or contains(text(), 'Lane 3') or contains(text(), 'Lane 4') or contains(text(), 'Lane 5'))]/preceding-sibling::td[position()=2 and starts-with(text(), '04:') and substring(text(), string-length(text()) - 1)='PM']"""
             schedule_xpath = (
                 "//td[contains(@class, 'clstdResurce') and "
                 "(contains(text(), 'Lane 2') or contains(text(), 'Lane 3')"
                 " or contains(text(), 'Lane 4') or contains(text(), 'Lane 5'))]"
-                f"/preceding-sibling::td[position()=2 and starts-with(text(), '{hour:02d}:')]"
+                f"/preceding-sibling::td[position()=2 and starts-with(text(), '{hour:02d}:')"
+                f" and substring(text(), string-length(text()) - 1)='{ampm}']"
             )
 
             while found_pool_time == False:

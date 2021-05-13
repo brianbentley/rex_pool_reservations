@@ -91,9 +91,9 @@ def navigate_to_reservation_page(web_driver):
     web_driver.find_element_by_xpath("//div[@title='Aquatics']").click()
 
     WebDriverWait(web_driver, timeout=30).until(
-        lambda d: d.find_element_by_xpath("//div[@title='Lap Pool Reservation']")
+        lambda d: d.find_element_by_xpath("//div[@title='A  Lap Pool Reservation']")
     )
-    web_driver.find_element_by_xpath("//div[@title='Lap Pool Reservation']").click()
+    web_driver.find_element_by_xpath("//div[@title='A  Lap Pool Reservation']").click()
 
     WebDriverWait(web_driver, timeout=30).until(
         lambda d: d.find_element_by_id("dateControlText")

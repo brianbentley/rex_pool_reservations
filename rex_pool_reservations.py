@@ -138,8 +138,8 @@ def schedule_pool_time(web_driver, config):
 
             schedule_xpath = (
                 "//td[contains(@class, 'clstdResurce') and "
-                "(contains(text(), 'Lane 2') or contains(text(), 'Lane 3')"
-                " or contains(text(), 'Lane 4') or contains(text(), 'Lane 5'))]"
+                "(contains(text(), 'Lane 1') or contains(text(), 'Lane 2') or contains(text(), 'Lane 3')"
+                " or contains(text(), 'Lane 4') or contains(text(), 'Ln 5'))]"
                 f"/preceding-sibling::td[position()=2 and starts-with(text(), '{hour:02d}:')"
                 f" and substring(text(), string-length(text()) - 1)='{ampm}']"
             )
@@ -167,6 +167,17 @@ def schedule_pool_time(web_driver, config):
                 lambda d: d.find_element_by_id("btnContinue")
             )
             web_driver.find_element_by_id("btnContinue").click()
+
+            family_member_xpath = f"//td[contains(text(), '{config['family_member']}')]"
+
+            WebDriverWait(web_driver, timeout=30).until(
+                lambda d: d.find_element_by_xpath(family_member_xpath)
+            )
+
+            web_driver.find_element_by_xpath(family_member_xpath).find_element_by_xpath(
+                ".."
+            ).find_element_by_xpath("//label[contains(@for, '_rdoHost')]").click()
+
             break
 
     if no_schedule_today:

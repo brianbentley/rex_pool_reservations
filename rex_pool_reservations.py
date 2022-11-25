@@ -17,6 +17,10 @@ class PoolReservationError(Exception):
     pass
 
 
+class PoolReservationNoMatchTimeError(Exception):
+    pass
+
+
 def send_email(
     subject, message, to_address_list, smtp_user, smtp_password, smtp_server, smtp_port
 ):
@@ -161,7 +165,9 @@ def schedule_pool_time(web_driver, config):
                     try:
                         web_driver.find_element_by_id("ancSchListNext").click()
                     except ElementNotInteractableException:
-                        raise PoolReservationError("Unable to find matching pool time.")
+                        raise PoolReservationNoMatchTimeError(
+                            "Unable to find matching pool time."
+                        )
 
             WebDriverWait(web_driver, timeout=30).until(
                 lambda d: d.find_element_by_id("btnContinue")
@@ -218,36 +224,55 @@ def main():
     chrome_options = Options()
     if config["headless"]:
         chrome_options.add_argument("--headless")
-    web_driver = webdriver.Chrome(options=chrome_options)
-    try:
-        web_driver.get(config["url"])
-        login(web_driver, config["username"], config["password"])
-        reservation_message = schedule_pool_time(web_driver, config)
-        web_driver.quit()
+
+    for _ in range(config["retries"]):
+        web_driver = webdriver.Chrome(options=chrome_options)
+        try:
+            web_driver.get(config["url"])
+            login(web_driver, config["username"], config["password"])
+            reservation_message = schedule_pool_time(web_driver, config)
+            web_driver.quit()
+            send_email(
+                "Rex Pool Reservation",
+                f"Rex Pool Reservation: {reservation_message}",
+                config["to_address_list"],
+                config["smtp_user"],
+                config["smtp_password"],
+                config["smtp_server"],
+                config["smtp_port"],
+            )
+            break
+        except PoolReservationNoMatchTimeError:
+            error_message = f"Rex Pool Reservation: {e}"
+            logging.error(error_message)
+            logging.error(e, exc_info=True)
+            web_driver.quit()
+            send_email(
+                "Rex Pool Reservation",
+                error_message,
+                config["to_address_list"],
+                config["smtp_user"],
+                config["smtp_password"],
+                config["smtp_server"],
+                config["smtp_port"],
+            )
+            break
+        except Exception as e:
+            error_message = f"Rex Pool Reservation: {e}"
+            logging.error(error_message)
+            logging.error(e, exc_info=True)
+            web_driver.quit()
+            continue
+    else:
         send_email(
             "Rex Pool Reservation",
-            f"Rex Pool Reservation: {reservation_message}",
+            "Maximum retry count reached.",
             config["to_address_list"],
             config["smtp_user"],
             config["smtp_password"],
             config["smtp_server"],
             config["smtp_port"],
         )
-    except Exception as e:
-        error_message = f"Rex Pool Reservation: {e}"
-        logging.error(error_message)
-        logging.error(e, exc_info=True)
-        web_driver.quit()
-        send_email(
-            "Rex Pool Reservation",
-            error_message,
-            config["to_address_list"],
-            config["smtp_user"],
-            config["smtp_password"],
-            config["smtp_server"],
-            config["smtp_port"],
-        )
-        raise
 
 
 if __name__ == "__main__":

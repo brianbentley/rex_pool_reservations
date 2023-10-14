@@ -246,7 +246,7 @@ def main():
                 config["smtp_port"],
             )
             break
-        except (PoolReservationNoMatchTimeError, PoolReservationNoSchedulesTodayError):
+        except (PoolReservationNoMatchTimeError, PoolReservationNoSchedulesTodayError) as e:
             error_message = f"Rex Pool Reservation: {e}"
             logging.error(error_message)
             logging.error(e, exc_info=True)

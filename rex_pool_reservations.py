@@ -1,5 +1,6 @@
 import calendar
 import datetime
+from email import message
 import json
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -26,25 +27,18 @@ class PoolReservationNoSchedulesTodayError(Exception):
 
 
 def send_email(
-    subject, message, to_address_list, smtp_user, smtp_password, smtp_server, smtp_port
+    subject, message_body, to_address_list, smtp_user, smtp_password, smtp_server, smtp_port
 ):
     """Sends an email"""
-    email_text = """\
-    from: %s
-    to: %s
-    subject: %s
-
-    %s
-    """ % (
-        smtp_user,
-        ", ".join(to_address_list),
-        subject,
-        message,
-    )
+    email = message.Message()
+    email.add_header("from", smtp_user)
+    email.add_header("to", ", ".join(to_address_list))
+    email.add_header("subject", subject)
+    email.set_payload(message_body)
     server = smtplib.SMTP_SSL(smtp_server, smtp_port)
     server.ehlo()
     server.login(smtp_user, smtp_password)
-    server.sendmail(smtp_user, to_address_list, email_text)
+    server.sendmail(smtp_user, to_address_list, email.as_string())
     server.close()
 
 

@@ -21,6 +21,9 @@ class PoolReservationError(Exception):
 class PoolReservationNoMatchTimeError(Exception):
     pass
 
+class PoolReservationNoSchedulesTodayError(Exception):
+    pass
+
 
 def send_email(
     subject, message, to_address_list, smtp_user, smtp_password, smtp_server, smtp_port
@@ -188,7 +191,7 @@ def schedule_pool_time(web_driver, config):
             break
 
     if no_schedule_today:
-        raise PoolReservationError(
+        raise PoolReservationNoSchedulesTodayError(
             "No schedules were found for today in configuration."
         )
 
@@ -243,7 +246,7 @@ def main():
                 config["smtp_port"],
             )
             break
-        except PoolReservationNoMatchTimeError:
+        except (PoolReservationNoMatchTimeError, PoolReservationNoSchedulesTodayError):
             error_message = f"Rex Pool Reservation: {e}"
             logging.error(error_message)
             logging.error(e, exc_info=True)

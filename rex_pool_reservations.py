@@ -30,9 +30,9 @@ def send_email(
 ):
     """Sends an email"""
     email_text = """\
-    From: %s
-    To: %s
-    Subject: %s
+    from: %s
+    to: %s
+    subject: %s
 
     %s
     """ % (

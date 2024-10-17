@@ -71,15 +71,21 @@ def login(web_driver, username, password):
     logging.info("login succesful.")
 
 
-def pick_date(calender_element, target_date):
+def pick_date(calender_element, target_date, web_driver):
     """Picks the date using the JQuery calendar UI"""
     logging.info("Picking date: %s", target_date)
     today = datetime.date.today()
 
     if today.day > target_date.day:
         calender_element.find_element(By.XPATH, "//a[@title='Next']").click()
+    
+    target_day = str(target_date.day)
 
-    calender_element.find_element(By.LINK_TEXT, str(target_date.day)).click()
+    WebDriverWait(web_driver, timeout=30).until(
+        lambda d: d.find_element(By.LINK_TEXT, target_day)
+    )
+
+    calender_element.find_element(By.LINK_TEXT, target_day).click()
 
 
 def navigate_to_reservation_page(web_driver):
@@ -109,7 +115,7 @@ def navigate_to_reservation_page(web_driver):
     calender_element = web_driver.find_element(By.ID, "ui-datepicker-div")
 
     target_date = datetime.date.today() + datetime.timedelta(days=7)
-    pick_date(calender_element, target_date)
+    pick_date(calender_element, target_date, web_driver)
 
     web_driver.find_element(By.ID, "btnContinue").click()
 
